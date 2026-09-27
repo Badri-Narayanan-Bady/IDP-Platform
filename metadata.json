@@ -1,0 +1,7 @@
+{
+  "name": "CortexIDP - Intelligent Document Processing Platform",
+  "description": "Production-grade AI pipeline that extracts structured information from invoices, contracts, forms, and business documents with confidence scoring, deterministic validation, and human-in-the-loop review workflows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
