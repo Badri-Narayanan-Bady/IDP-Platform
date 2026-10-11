@@ -13,7 +13,11 @@ import {
   ExternalLink,
   Shield,
   Layers,
-  Database
+  Database,
+  Share2,
+  Workflow,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 import { DocumentRecord } from '@/lib/types/idp';
 
@@ -55,10 +59,10 @@ export const DeveloperHub: React.FC<DeveloperHubProps> = ({ documents }) => {
         deliveryLatencyMs: 148,
         responsePayload: {
           success: true,
-          erpTransactionId: `SAP-TXN-${Date.now()}`,
+          erpTransactionId: `${webhookTarget}-TXN-${Date.now()}`,
           documentId: selectedDoc.id,
           status: 'COMMITTED_TO_LEDGER',
-          message: `Document ${selectedDoc.fileName} successfully ingested into ${webhookTarget} accounts payable journal.`
+          message: `Document ${selectedDoc.fileName} successfully ingested into ${webhookTarget} accounts payable journal via RPA connector.`
         }
       });
     }, 900);
@@ -68,7 +72,7 @@ export const DeveloperHub: React.FC<DeveloperHubProps> = ({ documents }) => {
   const handleExportCSV = () => {
     const headers = ['Document ID', 'File Name', 'Type', 'Status', 'Confidence', 'Primary Entity', 'Total/Amount', 'Processed At'];
     const rows = documents.map(d => {
-      const primaryEntity = d.fields.vendorName?.value || d.fields.partyA?.value || d.fields.patientName || d.fields.employerName || 'N/A';
+      const primaryEntity = d.fields.vendorName?.value || d.fields.partyA?.value || d.fields.patientName?.value || d.fields.employerName?.value || 'N/A';
       const amount = d.fields.totalAmount?.value || d.fields.primaryAmount?.value || d.fields.box1Wages?.value || 'N/A';
       return [
         `"${d.id}"`,
@@ -132,57 +136,57 @@ print(f"Extraction Confidence: {record['overallConfidence']}")
 print(f"Line Items: {record['lineItems']}")`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
       {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider mb-1">
-            <Terminal className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 text-zinc-400 font-mono text-xs uppercase tracking-wider mb-1">
+            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
             Developer Integration Hub
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            REST API, Webhook Dispatcher & Enterprise Data Export
+          <h2 className="text-base font-semibold text-zinc-100 tracking-tight">
+            REST API, ERP Integrations &amp; Webhook Dispatcher
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Seamlessly integrate CortexIDP into your backend systems, microservices, and ERP workflows (SAP, NetSuite, Salesforce, Snowflake).
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Connect CortexIDP with ERP (SAP S/4HANA, NetSuite), CRM, RPA bots (UiPath, Automation Anywhere), and downstream accounting software via HMAC-signed webhooks and REST endpoints.
           </p>
         </div>
 
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-semibold shadow-xs transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 hover:text-white text-xs font-medium transition"
         >
-          <Download className="w-4 h-4 text-cyan-400" />
-          Export All Records (CSV)
+          <Download className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Export All Records (CSV)</span>
         </button>
       </div>
 
       {/* Grid: Webhook Dispatcher Simulator + API Code Sandbox */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
         {/* Left Side: Webhook Dispatcher Simulator (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-6 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 space-y-3 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                Live ERP Webhook Dispatch Simulator
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <Globe className="w-3.5 h-3.5 text-zinc-400" />
+                Live ERP &amp; RPA Webhook Dispatch Simulator
               </span>
-              <span className="text-[10px] text-emerald-400 font-mono font-bold">HMAC Signed</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-medium">HMAC-SHA256 Signed</span>
             </div>
 
-            <p className="text-xs text-slate-400 mb-4">
-              Simulate transmitting a validated extraction payload to your destination ERP or downstream lakehouse with cryptographic HMAC-SHA256 signature verification.
+            <p className="text-xs text-zinc-400 mb-3">
+              Transmit validated IDP payloads to your destination enterprise software (SAP, NetSuite, Salesforce, UiPath RPA bots) with cryptographic signature validation.
             </p>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-2.5 text-xs">
               <div>
-                <label className="text-slate-300 font-medium">Select Document to Transmit:</label>
+                <label className="text-zinc-400 font-medium">Select Document to Transmit:</label>
                 <select
                   value={selectedDocId}
                   onChange={e => setSelectedDocId(e.target.value)}
-                  className="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 font-sans focus:outline-none focus:border-indigo-500"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 font-sans focus:outline-none focus:border-zinc-700"
                 >
                   {documents.map(d => (
                     <option key={d.id} value={d.id}>
@@ -193,21 +197,22 @@ print(f"Line Items: {record['lineItems']}")`;
               </div>
 
               <div>
-                <label className="text-slate-300 font-medium">Enterprise Target System:</label>
-                <div className="grid grid-cols-3 gap-2 mt-1">
+                <label className="text-zinc-400 font-medium">Enterprise Target System / Connector:</label>
+                <div className="grid grid-cols-4 gap-1.5 mt-1">
                   {[
                     { id: 'SAP_S4HANA', label: 'SAP S/4HANA' },
                     { id: 'NETSUITE', label: 'Oracle NetSuite' },
+                    { id: 'UIPATH_RPA', label: 'UiPath RPA Bot' },
                     { id: 'SNOWFLAKE', label: 'Snowflake' },
                   ].map(t => (
                     <button
                       key={t.id}
                       type="button"
                       onClick={() => setWebhookTarget(t.id)}
-                      className={`p-2 rounded-lg border text-xs font-medium text-center transition ${
+                      className={`p-1.5 rounded border text-[11px] font-medium text-center transition ${
                         webhookTarget === t.id
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
-                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                          ? 'bg-zinc-800 text-zinc-100 border-emerald-500/60 shadow-xs'
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                       }`}
                     >
                       {t.label}
@@ -217,28 +222,28 @@ print(f"Line Items: {record['lineItems']}")`;
               </div>
 
               <div>
-                <label className="text-slate-300 font-medium">Destination Webhook URL:</label>
+                <label className="text-zinc-400 font-medium">Destination Webhook URL:</label>
                 <input
                   type="text"
                   value={customEndpoint}
                   onChange={e => setCustomEndpoint(e.target.value)}
-                  className="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 font-mono text-xs focus:outline-none focus:border-zinc-700"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-800 space-y-3">
+          <div className="pt-2 border-t border-zinc-800 space-y-2">
             <button
               onClick={handleSimulateWebhook}
               disabled={isDispatching || !selectedDoc}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-xs transition disabled:opacity-50"
             >
               {isDispatching ? (
-                <span>Signing & Dispatching Webhook...</span>
+                <span>Signing &amp; Dispatching Webhook...</span>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                   <span>Dispatch Webhook Event</span>
                 </>
               )}
@@ -246,20 +251,20 @@ print(f"Line Items: {record['lineItems']}")`;
 
             {/* Webhook Response Output */}
             {dispatchResult && (
-              <div className="p-3.5 bg-slate-950 rounded-xl border border-emerald-800/60 space-y-2 animate-fade-in text-xs font-mono">
-                <div className="flex items-center justify-between text-emerald-400 font-bold">
+              <div className="p-3 bg-zinc-950 rounded border border-emerald-500/30 space-y-1.5 text-xs font-mono">
+                <div className="flex items-center justify-between text-emerald-400 font-medium">
                   <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                     HTTP 200 OK Delivered ({dispatchResult.deliveryLatencyMs}ms)
                   </span>
-                  <span className="text-[10px] text-slate-400">{dispatchResult.timestamp.substring(11, 19)} UTC</span>
+                  <span className="text-[10px] text-zinc-500">{dispatchResult.timestamp.substring(11, 19)} UTC</span>
                 </div>
 
-                <div className="text-[11px] text-slate-400 break-all">
-                  <span className="text-slate-500">Signature:</span> {dispatchResult.hmacSignature.substring(0, 32)}...
+                <div className="text-[10px] text-zinc-500 break-all">
+                  <span>Signature:</span> {dispatchResult.hmacSignature.substring(0, 32)}...
                 </div>
 
-                <div className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300 text-[11px] whitespace-pre-wrap">
+                <div className="p-2 bg-zinc-900 rounded border border-zinc-800 text-zinc-300 text-[11px] whitespace-pre-wrap">
                   {JSON.stringify(dispatchResult.responsePayload, null, 2)}
                 </div>
               </div>
@@ -268,35 +273,35 @@ print(f"Line Items: {record['lineItems']}")`;
         </div>
 
         {/* Right Side: API Code Sandbox (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-sm">
+        <div className="lg:col-span-6 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Code className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Code className="w-3.5 h-3.5 text-zinc-400" />
               Direct Pipeline API Endpoint
             </span>
 
             {/* Code Language Switcher */}
-            <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs">
+            <div className="flex bg-zinc-950 p-0.5 rounded border border-zinc-800 text-xs">
               <button
                 onClick={() => setActiveCodeTab('CURL')}
-                className={`px-2.5 py-1 rounded font-mono font-medium transition ${
-                  activeCodeTab === 'CURL' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                className={`px-2 py-0.5 rounded font-mono text-[11px] transition ${
+                  activeCodeTab === 'CURL' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 cURL
               </button>
               <button
                 onClick={() => setActiveCodeTab('NODE')}
-                className={`px-2.5 py-1 rounded font-mono font-medium transition ${
-                  activeCodeTab === 'NODE' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                className={`px-2 py-0.5 rounded font-mono text-[11px] transition ${
+                  activeCodeTab === 'NODE' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 Node.js
               </button>
               <button
                 onClick={() => setActiveCodeTab('PYTHON')}
-                className={`px-2.5 py-1 rounded font-mono font-medium transition ${
-                  activeCodeTab === 'PYTHON' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                className={`px-2 py-0.5 rounded font-mono text-[11px] transition ${
+                  activeCodeTab === 'PYTHON' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 Python
@@ -305,16 +310,16 @@ print(f"Line Items: {record['lineItems']}")`;
           </div>
 
           {/* Code Viewer */}
-          <div className="relative bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
+          <div className="relative bg-zinc-950 border border-zinc-800 rounded p-3 font-mono text-xs text-zinc-300 overflow-x-auto">
             <button
               onClick={() => handleCopy(
                 activeCodeTab === 'CURL' ? curlCode : activeCodeTab === 'NODE' ? nodeCode : pythonCode,
                 'api-code'
               )}
-              className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+              className="absolute top-2.5 right-2.5 p-1 rounded bg-zinc-850 hover:bg-zinc-750 text-zinc-400 hover:text-zinc-200 border border-zinc-750 transition"
               title="Copy Code"
             >
-              {copiedCode === 'api-code' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedCode === 'api-code' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
             </button>
 
             <pre className="text-[11px] leading-relaxed">
@@ -325,14 +330,14 @@ print(f"Line Items: {record['lineItems']}")`;
           </div>
 
           {/* Pipeline Specifications */}
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-              <div className="text-[11px] text-slate-400 font-semibold uppercase">Supported Encodings</div>
-              <div className="text-slate-200 mt-1 font-mono">multipart/form-data, Base64, raw/utf-8</div>
+          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="p-2.5 bg-zinc-950 rounded border border-zinc-800">
+              <div className="text-[10px] text-zinc-500 uppercase">Supported Encodings</div>
+              <div className="text-zinc-300 mt-0.5 text-[11px]">multipart/form-data, Base64, raw/utf-8</div>
             </div>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-              <div className="text-[11px] text-slate-400 font-semibold uppercase">Rate Limit & Throughput</div>
-              <div className="text-slate-200 mt-1 font-mono">500 req/sec • Auto-scaled cloud workers</div>
+            <div className="p-2.5 bg-zinc-950 rounded border border-zinc-800">
+              <div className="text-[10px] text-zinc-500 uppercase">Rate Limit &amp; Throughput</div>
+              <div className="text-zinc-300 mt-0.5 text-[11px]">500 req/sec • Auto-scaled workers</div>
             </div>
           </div>
         </div>

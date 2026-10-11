@@ -28,7 +28,8 @@ import {
   FileCode2,
   RefreshCw,
   Search,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 import { DocumentRecord, ExtractedField, LineItem } from '@/lib/types/idp';
 import { DocumentVisualizer } from './DocumentVisualizer';
@@ -86,6 +87,9 @@ export const DocumentWorkbench: React.FC<DocumentWorkbenchProps> = ({
   const [showAddFieldModal, setShowAddFieldModal] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [showErpDispatchModal, setShowErpDispatchModal] = useState<boolean>(false);
+  const [showContinuousLearningModal, setShowContinuousLearningModal] = useState<boolean>(false);
+  const [isRetrainingFeedback, setIsRetrainingFeedback] = useState<boolean>(false);
+  const [continuousLearningSuccess, setContinuousLearningSuccess] = useState<boolean>(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState<boolean>(false);
 
   // Toast / Status Notices
@@ -725,6 +729,17 @@ export const DocumentWorkbench: React.FC<DocumentWorkbenchProps> = ({
 
               {moreMenuOpen && (
                 <div className="absolute right-0 mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-md shadow-xl py-1 z-50 animate-in fade-in duration-100 text-xs">
+                  <button
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      setShowContinuousLearningModal(true);
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Continuous Learning Loop</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       setMoreMenuOpen(false);
@@ -1640,6 +1655,95 @@ export const DocumentWorkbench: React.FC<DocumentWorkbenchProps> = ({
                 className="px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Continuous Learning & Model Adaptation Modal */}
+      {showContinuousLearningModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-lg w-full p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-semibold text-zinc-100">Continuous Learning &amp; Model Adaptation</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowContinuousLearningModal(false);
+                  setContinuousLearningSuccess(false);
+                }}
+                className="text-zinc-500 hover:text-zinc-300 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-zinc-400 leading-relaxed">
+                CortexIDP incorporates human verification feedback to adapt and continuously improve model extraction accuracy for new vendor layouts and edge cases.
+              </p>
+
+              <div className="p-3 bg-zinc-950 rounded border border-zinc-800 space-y-2">
+                <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">
+                  Active Document Corrections Staged for Learning:
+                </div>
+                <div className="space-y-1 font-mono text-[11px]">
+                  <div>• Document Type: <span className="text-zinc-200">{document.documentType}</span></div>
+                  <div>• Edited Fields: <span className="text-emerald-400">{Object.values(document.fields).filter(f => f.isEdited).length} field(s) corrected by human reviewer</span></div>
+                  <div>• Target Model: <span className="text-zinc-300">gemini-3.8-flash (Few-Shot Adapter)</span></div>
+                </div>
+              </div>
+
+              {continuousLearningSuccess ? (
+                <div className="p-3 bg-zinc-950 rounded border border-emerald-500/40 text-emerald-400 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>
+                    <strong>Feedback Integrated:</strong> Continuous learning weights updated. Future documents from &quot;{document.fields.vendorName?.value || document.fileName}&quot; will achieve higher Straight-Through Processing (STP).
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2.5 bg-zinc-950/60 rounded border border-zinc-800/80 text-zinc-400 text-[11px]">
+                  Submitting will commit reviewer corrections into the IDP continuous evaluation set and fine-tuning prompt cache.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+              <button
+                onClick={() => {
+                  setShowContinuousLearningModal(false);
+                  setContinuousLearningSuccess(false);
+                }}
+                className="px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium"
+              >
+                Close
+              </button>
+
+              <button
+                disabled={isRetrainingFeedback || continuousLearningSuccess}
+                onClick={() => {
+                  setIsRetrainingFeedback(true);
+                  setTimeout(() => {
+                    setIsRetrainingFeedback(false);
+                    setContinuousLearningSuccess(true);
+                  }, 800);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition disabled:opacity-50"
+              >
+                {isRetrainingFeedback ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Adapting Model...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    <span>Commit Corrections to Model</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

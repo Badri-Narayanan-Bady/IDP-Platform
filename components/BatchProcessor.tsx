@@ -20,7 +20,11 @@ import {
   Eye,
   Layers,
   FileCheck2,
-  Scan
+  Scan,
+  Mail,
+  Smartphone,
+  Terminal,
+  FolderSync
 } from 'lucide-react';
 import { DocumentRecord, DocumentType, OcrQualityReport } from '@/lib/types/idp';
 import { DOCUMENT_SCHEMAS } from '@/lib/schemas/registry';
@@ -30,6 +34,8 @@ interface BatchProcessorProps {
   onDocumentProcessed: (doc: DocumentRecord) => void;
   onNavigateToStudio: (doc: DocumentRecord) => void;
 }
+
+type IngestionChannel = 'MULTI_CHANNEL_FILE' | 'EMAIL_DROP' | 'MOBILE_SCAN' | 'REST_API' | 'SFTP_BATCH';
 
 export const BatchProcessor: React.FC<BatchProcessorProps> = ({
   onDocumentProcessed,
@@ -43,13 +49,15 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
   const [qualityWarningReport, setQualityWarningReport] = useState<OcrQualityReport | null>(null);
   const [forceOverride, setForceOverride] = useState<boolean>(false);
   const [recentProcessed, setRecentProcessed] = useState<DocumentRecord[]>([]);
+  const [activeChannel, setActiveChannel] = useState<IngestionChannel>('MULTI_CHANNEL_FILE');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Production Enterprise Workloads for live verification
+  // Production Enterprise Workloads for live verification across scenarios
   const ENTERPRISE_WORKLOADS = [
     {
       title: 'Global Cloud Infrastructure Invoice',
+      channel: 'API / ERP' as const,
       type: 'INVOICE' as DocumentType,
       desc: 'High-volume IT infrastructure invoice with line items, tax breakdown, and IBAN wire remittance.',
       text: `VORTEX INFRASTRUCTURE CLOUD INC.
@@ -87,6 +95,7 @@ Swift/IBAN: US44-CHAS-021000021-881044910021`
     },
     {
       title: 'Defense Supply Purchase Order',
+      channel: 'SFTP Batch' as const,
       type: 'PURCHASE_ORDER' as DocumentType,
       desc: 'Procurement order with line items, destination dock, and authorized requisitioner.',
       text: `PURCHASE ORDER: # PO-2025-9921
@@ -118,6 +127,7 @@ AUTHORIZED TOTAL PO VALUE: $24,910.00`
     },
     {
       title: 'Biotech Clinical NDA & Master Services Agreement',
+      channel: 'Email Ingest' as const,
       type: 'LEGAL_CONTRACT' as DocumentType,
       desc: 'Master Agreement with indemnification covenants, $5M liability cap, and Delaware jurisdiction.',
       text: `CONFIDENTIAL MASTER CLINICAL RESEARCH AGREEMENT
@@ -141,6 +151,7 @@ All proprietary genomics data shall remain strictly confidential for seven (7) y
     },
     {
       title: 'Passport & Government ID (KYC with Handwritten Endorsement)',
+      channel: 'Mobile Scan' as const,
       type: 'IDENTITY_DOCUMENT' as DocumentType,
       desc: 'Official passport scan with MRZ zone and bearer handwritten address endorsement for KYC.',
       text: `UNITED STATES OF AMERICA
@@ -165,6 +176,7 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
     },
     {
       title: 'Severely Degraded / Smudged Scan (Tests Early Discard)',
+      channel: 'Mobile Scan' as const,
       type: 'CUSTOM_FORM' as DocumentType,
       desc: 'Simulated low-DPI blurred scan that fails automatic OCR pre-checks and triggers early discard.',
       text: `[CORRUPTED OCR STREAM - SEVERE GAUSSIAN BLUR - RESOLUTION 72 DPI]
@@ -282,30 +294,30 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
+      {/* Hero Header */}
+      <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              Document Ingestion &amp; Vision Extraction Engine
+            <div className="flex items-center gap-1.5 text-zinc-400 font-mono text-xs uppercase tracking-wider mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Multi-Channel Ingestion &amp; Vision Extraction</span>
             </div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              Ingest Multi-Format Documents with OCR Quality Guard
+            <h2 className="text-base font-semibold text-zinc-100 tracking-tight">
+              Enterprise Ingestion Engine &amp; OCR Quality Guard
             </h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Upload multi-format PDFs, scans, images, or raw text. The platform performs early OCR quality checks to discard unreadable files early, followed by zero-shot AI classification and template-free extraction.
+            <p className="text-xs text-zinc-400 mt-0.5 max-w-3xl">
+              Captures documents from email webhooks, mobile scans, direct API uploads, and batch SFTP transfers. Automatic OCR quality checks discard unreadable files early before zero-shot AI classification and template-free extraction.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 font-mono">Target Schema:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 font-mono">Classification:</span>
             <select
               value={selectedSchema}
               onChange={e => setSelectedSchema(e.target.value as any)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
+              className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 font-medium focus:outline-none focus:border-zinc-700"
             >
               <option value="AUTO">🤖 Intelligent Auto-Classification</option>
               {Object.values(DOCUMENT_SCHEMAS).map(s => (
@@ -314,49 +326,129 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
             </select>
           </div>
         </div>
+
+        {/* Multi-Channel Ingestion Switcher */}
+        <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
+            Channels:
+          </span>
+          {[
+            { id: 'MULTI_CHANNEL_FILE' as IngestionChannel, label: 'Batch / File Drop', icon: Upload },
+            { id: 'EMAIL_DROP' as IngestionChannel, label: 'Email Ingestion (inbox@cortex.ai)', icon: Mail },
+            { id: 'MOBILE_SCAN' as IngestionChannel, label: 'Mobile Photo / Scan', icon: Smartphone },
+            { id: 'REST_API' as IngestionChannel, label: 'REST API Ingestion', icon: Terminal },
+            { id: 'SFTP_BATCH' as IngestionChannel, label: 'SFTP / Batch Pipeline', icon: FolderSync },
+          ].map(c => {
+            const Icon = c.icon;
+            const isActive = activeChannel === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveChannel(c.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition shrink-0 ${
+                  isActive
+                    ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{c.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Ingestion Channel Info Banner */}
+      {activeChannel === 'EMAIL_DROP' && (
+        <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Email Ingestion Listener Active:</strong> Forward vendor attachments to <code className="font-mono text-emerald-400 bg-zinc-950 px-1 py-0.5 rounded">ap-invoices@cortex-idp.internal</code>. Automatic OCR and schema normalization triggers instantly.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-500">IMAP / SendGrid Inbound Hook</span>
+        </div>
+      )}
+
+      {activeChannel === 'MOBILE_SCAN' && (
+        <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Mobile Edge Scanner:</strong> Captures receipts, bills of lading, and paper forms with perspective correction, auto-deskewing, and edge boundary detection.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-500">PWA Camera API</span>
+        </div>
+      )}
+
+      {activeChannel === 'REST_API' && (
+        <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Direct REST API Ingestion:</strong> POST multipart/form-data or Base64 JSON payloads directly to <code className="font-mono text-emerald-400 bg-zinc-950 px-1 py-0.5 rounded">/api/idp/process</code>.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-500">500 req/sec SLA</span>
+        </div>
+      )}
+
+      {activeChannel === 'SFTP_BATCH' && (
+        <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FolderSync className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Automated SFTP Batch Poller:</strong> Monitors <code className="font-mono text-emerald-400 bg-zinc-950 px-1 py-0.5 rounded">sftp://transfer.cortex.internal/incoming</code> every 60 seconds for multi-gigabyte night batches.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-500">Cron Daemon Active</span>
+        </div>
+      )}
 
       {/* OCR Quality Early Discard Alert if triggered */}
       {qualityWarningReport && qualityWarningReport.discardSuggested && (
-        <div className="p-4 bg-rose-950/90 border border-rose-500 text-rose-200 rounded-xl text-xs space-y-3 shadow-lg animate-fade-in">
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-200 rounded-lg text-xs space-y-2.5 shadow-xs">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
+              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
               <div>
-                <span className="font-bold text-white text-sm">Automatic OCR Quality Check: Ingestion Discarded Early</span>
-                <p className="text-rose-300 mt-0.5">
-                  This document failed early readability gating. It was discarded before executing expensive vision-language extraction to protect compute and prevent inaccurate data.
+                <span className="font-semibold text-rose-200">Automatic OCR Quality Check: Ingestion Discarded Early</span>
+                <p className="text-rose-300 text-[11px] mt-0.5">
+                  This document failed early readability gating. It was discarded before executing expensive vision-language extraction to protect compute and prevent inaccurate downstream ERP data.
                 </p>
               </div>
             </div>
-            <span className="px-2 py-0.5 rounded bg-rose-900 text-rose-200 font-mono font-bold text-[10px] border border-rose-700">
+            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono text-[10px] border border-rose-500/30">
               Score: {qualityWarningReport.overallScore}/100 ({qualityWarningReport.readabilityGrade})
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-rose-900/60 font-mono text-[11px]">
-            <div>Resolution / DPI: <span className="text-white font-bold">{qualityWarningReport.resolutionDpi} DPI</span></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-zinc-950/80 p-2 rounded border border-rose-500/20 font-mono text-[11px]">
+            <div>Resolution / DPI: <span className="text-zinc-100 font-bold">{qualityWarningReport.resolutionDpi} DPI</span></div>
             <div>Blur Score: <span className="text-rose-300 font-bold">{qualityWarningReport.blurScore}/100</span></div>
-            <div>Contrast: <span className="text-white font-bold">{qualityWarningReport.estimatedContrast}%</span></div>
+            <div>Contrast: <span className="text-zinc-100 font-bold">{qualityWarningReport.estimatedContrast}%</span></div>
           </div>
 
-          <div className="text-[11px] text-rose-200 space-y-1">
-            <div className="font-semibold text-rose-300">Specific Discard Diagnostic Reasons:</div>
+          <div className="text-[11px] text-rose-300 space-y-0.5">
+            <div className="font-medium text-rose-200">Diagnostic Discard Reasons:</div>
             {qualityWarningReport.reasons.map((r, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-rose-200">
+              <div key={i} className="flex items-center gap-1.5 text-rose-300">
                 <span className="text-rose-400">•</span>
                 <span>{r}</span>
               </div>
             ))}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-rose-900/60">
-            <span className="text-[11px] text-slate-300">
+          <div className="flex items-center justify-between pt-1.5 border-t border-rose-500/20">
+            <span className="text-[11px] text-zinc-400">
               Recommendation: Rescan with high contrast and minimum 150 DPI.
             </span>
             <button
               onClick={() => handleRunPipeline(undefined, undefined, undefined, true)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 transition"
+              className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition"
             >
               Force Ingestion (Override Gating)
             </button>
@@ -366,37 +458,37 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
 
       {/* General Error Notice */}
       {errorNotice && !qualityWarningReport?.discardSuggested && (
-        <div className="p-4 bg-rose-950/80 border border-rose-600 text-rose-200 rounded-xl text-xs flex items-center justify-between shadow-md">
+        <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-200 rounded-lg text-xs flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorNotice}</span>
           </div>
-          <button onClick={() => setErrorNotice(null)} className="text-rose-300 hover:text-white font-bold">
+          <button onClick={() => setErrorNotice(null)} className="text-rose-300 hover:text-white font-medium">
             Dismiss
           </button>
         </div>
       )}
 
       {/* Main Upload / Input Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
         {/* Left Side: Upload & OCR Paste Box (7 cols) */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-sm">
+        <div className="lg:col-span-7 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 space-y-3.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Upload className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Upload className="w-3.5 h-3.5 text-zinc-400" />
               Document Ingestion &amp; Preprocessing Box
             </span>
-            <span className="text-[11px] text-slate-400">PDF, PNG, JPG, Scans, or Text</span>
+            <span className="text-[11px] text-zinc-500 font-mono">PDF, Scans, Images, or Text</span>
           </div>
 
           {/* Drag & Drop File Zone */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+            className={`border border-dashed rounded-lg p-5 text-center cursor-pointer transition-all ${
               selectedFile
-                ? 'border-emerald-500/80 bg-emerald-950/20'
-                : 'border-slate-700 hover:border-indigo-500 bg-slate-950/60 hover:bg-slate-950'
+                ? 'border-emerald-500/80 bg-emerald-500/5'
+                : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950/60 hover:bg-zinc-950'
             }`}
           >
             <input
@@ -409,9 +501,9 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
             
             {selectedFile ? (
               <div className="space-y-1">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                <div className="text-sm font-semibold text-white">{selectedFile.name}</div>
-                <div className="text-[11px] text-emerald-400 font-mono">File loaded &amp; pre-screened</div>
+                <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
+                <div className="text-xs font-semibold text-zinc-100 font-mono">{selectedFile.name}</div>
+                <div className="text-[11px] text-emerald-400 font-mono">File staged &amp; pre-screened</div>
                 <button
                   type="button"
                   onClick={e => {
@@ -425,12 +517,12 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Upload className="w-8 h-8 text-slate-500 mx-auto" />
-                <div className="text-xs text-slate-300 font-medium">
+              <div className="space-y-1.5">
+                <Upload className="w-6 h-6 text-zinc-500 mx-auto" />
+                <div className="text-xs text-zinc-300 font-medium">
                   Click to browse or drag &amp; drop document file
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-zinc-500">
                   Automatic OCR quality checks run instantly to discard unreadable files early
                 </p>
               </div>
@@ -439,31 +531,31 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
 
           {/* Real-time Pre-screening Indicator if file/text present */}
           {currentQualityReport && (
-            <div className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
+            <div className={`p-2.5 rounded border text-xs flex items-center justify-between ${
               currentQualityReport.passed 
-                ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' 
-                : 'bg-rose-950/40 border-rose-800 text-rose-300'
+                ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' 
+                : 'bg-rose-500/5 border-rose-500/20 text-rose-400'
             }`}>
               <div className="flex items-center gap-2">
                 {currentQualityReport.passed ? (
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 ) : (
-                  <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 )}
                 <span>
                   <strong>OCR Pre-Check:</strong> {currentQualityReport.readabilityGrade} ({currentQualityReport.overallScore}/100) • {currentQualityReport.resolutionDpi} DPI
                 </span>
               </div>
-              <span className="text-[10px] font-mono">
-                {currentQualityReport.passed ? '✓ Ready for AI Extraction' : '⚠️ Discard Risk'}
+              <span className="text-[10px] font-mono font-medium">
+                {currentQualityReport.passed ? '✓ Passed Gating' : '⚠️ Discard Risk'}
               </span>
             </div>
           )}
 
           {/* OCR / Plaintext Input Stream */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-300">Or Paste OCR / Unstructured Text:</label>
+              <label className="text-xs font-medium text-zinc-400">Or Paste OCR / Unstructured Text:</label>
               {inputText && (
                 <button
                   type="button"
@@ -471,33 +563,33 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
                     setInputText('');
                     setQualityWarningReport(null);
                   }}
-                  className="text-[11px] text-slate-500 hover:text-slate-300"
+                  className="text-[11px] text-zinc-500 hover:text-zinc-300 font-mono"
                 >
                   Clear Text
                 </button>
               )}
             </div>
             <textarea
-              rows={6}
+              rows={5}
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               placeholder="Paste raw OCR extracted text, billing statements, contract text, or JSON payload here..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-xs text-zinc-200 font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"
             />
           </div>
 
           {/* Execute Pipeline Button */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-mono">
-                Model: <span className="text-indigo-400">gemini-3.8-flash</span>
+              <span className="text-[11px] text-zinc-500 font-mono">
+                Model: <span className="text-zinc-300">gemini-3.8-flash</span>
               </span>
-              <label className="flex items-center gap-1 text-[11px] text-slate-400 cursor-pointer ml-3">
+              <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 cursor-pointer ml-3">
                 <input
                   type="checkbox"
                   checked={forceOverride}
                   onChange={e => setForceOverride(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-0"
+                  className="rounded bg-zinc-950 border-zinc-800 text-emerald-600 focus:ring-0 w-3 h-3"
                 />
                 <span>Bypass Quality Gating</span>
               </label>
@@ -506,16 +598,16 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
             <button
               onClick={() => handleRunPipeline()}
               disabled={isProcessing || (!inputText && !selectedFile)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {isProcessing ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   <span>Processing Pipeline...</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 fill-current" />
+                  <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Execute Pipeline</span>
                 </>
               )}
@@ -524,35 +616,40 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
         </div>
 
         {/* Right Side: Enterprise Scenarios & Telemetry (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-sm">
+        <div className="lg:col-span-5 space-y-3">
+          <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-4 space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <FileCheck2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <FileCheck2 className="w-3.5 h-3.5 text-zinc-400" />
                 Enterprise Benchmark Scenarios
               </span>
-              <span className="text-[10px] text-slate-400">1-Click Test</span>
+              <span className="text-[10px] text-zinc-500 font-mono">1-Click Test</span>
             </div>
-            <p className="text-xs text-slate-400">
-              Run authentic corporate workloads through intelligent classification, template-free vision extraction, and quality gating:
+            <p className="text-xs text-zinc-400">
+              Run authentic corporate workloads through multi-channel ingestion, intelligent classification, and quality gating:
             </p>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {ENTERPRISE_WORKLOADS.map((workload, idx) => (
                 <div
                   key={idx}
                   onClick={() => handleRunPipeline(workload.text, workload.type, `${workload.title.replace(/\s+/g, '_')}.txt`)}
-                  className="p-3 bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-lg cursor-pointer transition-all group"
+                  className="p-2.5 bg-zinc-950/60 hover:bg-zinc-800/60 border border-zinc-800 hover:border-zinc-700 rounded cursor-pointer transition group"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-slate-200 group-hover:text-white">
+                    <span className="text-xs font-medium text-zinc-200 group-hover:text-white truncate">
                       {workload.title}
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
-                      {workload.type}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[9px] font-mono px-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                        {workload.channel}
+                      </span>
+                      <span className="text-[9px] font-mono px-1 rounded bg-zinc-800 text-emerald-400 border border-zinc-700">
+                        {workload.type}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-snug">
+                  <p className="text-[11px] text-zinc-500 leading-snug">
                     {workload.desc}
                   </p>
                 </div>
@@ -560,30 +657,30 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
             </div>
           </div>
 
-          {/* Quick Telemetry Callout */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs space-y-2 font-mono text-slate-400">
-            <div className="flex justify-between text-slate-300 font-sans font-semibold">
+          {/* Architecture Specifications */}
+          <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-3 text-xs space-y-1.5 font-mono text-zinc-400">
+            <div className="flex justify-between text-zinc-300 font-sans font-medium text-[11px] pb-1 border-b border-zinc-800">
               <span className="flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                <Cpu className="w-3.5 h-3.5 text-zinc-400" />
                 Live Architecture Specifications
               </span>
               <span className="text-emerald-400">Active</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between text-[11px]">
+              <span>Ingestion Channels:</span>
+              <span className="text-zinc-200">Email, Mobile, API, SFTP</span>
+            </div>
+            <div className="flex justify-between text-[11px]">
               <span>Classifier:</span>
-              <span className="text-slate-200">Zero-Shot Vision Semantic</span>
+              <span className="text-zinc-200">Zero-Shot Semantic Model</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between text-[11px]">
               <span>OCR Pre-check:</span>
-              <span className="text-cyan-400">DPI / Blur / Contrast Gating</span>
+              <span className="text-emerald-400">DPI / Blur / Contrast Gating</span>
             </div>
-            <div className="flex justify-between">
-              <span>Extractor:</span>
-              <span className="text-slate-200">Vision-Language Multimodal</span>
-            </div>
-            <div className="flex justify-between">
-              <span>HITL Human Sign-Off:</span>
-              <span className="text-slate-200">Review &amp; Edit Active</span>
+            <div className="flex justify-between text-[11px]">
+              <span>Continuous Learning:</span>
+              <span className="text-zinc-200">HITL Correction Feedback Active</span>
             </div>
           </div>
         </div>
@@ -592,31 +689,31 @@ P984210985USA9005148M3005142<<<<<<<<<<<<<<04`
 
       {/* Recently Processed Records Strip */}
       {recentProcessed.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/80 rounded-lg p-3.5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
               Recently Ingested in this Session ({recentProcessed.length})
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {recentProcessed.slice(0, 3).map(doc => (
               <div
                 key={doc.id}
                 onClick={() => onNavigateToStudio(doc)}
-                className="p-3 bg-slate-950 rounded-lg border border-slate-800 hover:border-cyan-500/70 cursor-pointer transition-all group space-y-1.5"
+                className="p-2.5 bg-zinc-950 rounded border border-zinc-800 hover:border-zinc-700 cursor-pointer transition group space-y-1"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-white truncate max-w-[180px]">
+                  <span className="text-xs font-medium text-zinc-200 truncate max-w-[180px]">
                     {doc.fileName}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-zinc-800 text-zinc-400">
                     {doc.documentType}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono">
                   <span>Confidence: <strong className="text-emerald-400">{Math.round(doc.overallConfidence * 100)}%</strong></span>
-                  <span className="text-indigo-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                  <span className="text-zinc-400 group-hover:text-white transition flex items-center gap-0.5">
                     Open <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
